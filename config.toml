@@ -1,0 +1,74 @@
+baseurl = "http://samanbarghi.com/"
+title = "Saman Barghi"
+languageCode = "en-us"
+disqusShortname = "samanbarghi" # Optional, enable Disqus integration
+MetaDataFormat = "toml"
+theme = "hyde-x"
+paginate = 10
+
+[author]
+    name = "Saman Barghi"
+
+[permalinks]
+    # Optional. Change the permalink format for the 'post' content type.
+    # The format shown here is the same one Jekyll/Octopress uses by default.
+    post = "/blog/:year/:month/:day/:title/"
+
+[taxonomies]
+    # Optional. Use if you want tags and lists.
+    category = "categories"
+
+#
+# All parameters below here are optional and can be mixed and matched.
+#
+[params]
+    # If false display full article contents in blog index.
+    # Otherwise show description and 'read on' link to individual blog post page.
+    # Default (if omitted) is true.
+    truncate = true
+
+    # Used when a given page doesn't set its own.
+    defaultDescription = "Your default page description"
+    defaultKeywords = "Saman,Barghi,Personal,Blog,Programming,Developer,University of Waterloo, hacker"
+
+    # Changes sidebar background and link/accent colours.
+    # See below for more colour options.
+    # This also works: "theme-base-08 layout-reverse", or just "layout-reverse".
+    theme = "theme-base-0c"
+
+    # Select a syntax highight.
+    # Check the static/css/highlight directory for options.
+    highlight = "monokai_sublime"
+
+    # Displays under the author name in the sidebar, keep it short.
+    # You can use markdown here.
+    tagline = "Trying to live a better life."
+
+    # Text for the top menu link, which goes the root URL for the site.
+    # Default (if omitted) is "Blog".
+    home = "Blog"
+
+    # Metadata used to drive integrations.
+    googleAuthorship = "107308907271825277073"
+    googleAnalytics = "UA-48282777-1"
+    gravatarHash = "c46fe343ef662d682b4dc15cfe78cb06"
+
+    # Sidebar social links, these must be full URLs.
+    github = "https://github.com/samanbarghi"
+    bitbucket = ""
+    stackOverflow = "http://stackexchange.com/users/308492/saman-barghi"
+    linkedin = "https://ca.linkedin.com/in/samanbarghi"
+    googleplus = "https://plus.google.com/107308907271825277073"
+    facebook = ""
+    twitter = ""
+    youtube = ""
+
+    # Other social-like sidebar links
+    rss = true  # switch to true to enable RSS icon link
+    flattr = ""  # populate with your flattr uid
+
+[[menu.main]]
+    name = "About"
+    weight = -110
+    identifier = "about"
+    url = "/about/"
