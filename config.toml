@@ -78,5 +78,3 @@ paginate = 10
     weight = -110
     identifier = "projects"
     url = "/projects/"
-
-

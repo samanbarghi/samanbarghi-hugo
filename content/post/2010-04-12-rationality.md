@@ -21,6 +21,6 @@ A very familiar example is a broken relationship. I have seen many people get em
 
 The main question here is how to detect these moments ? How to stay in touch with reality all the time and keep emotions away? What should you do after you detected you trapped in a box? how can you see outside of the box with your own power and without getting any help from someone else? What will be the possible practice to strengthen this ability?
 
-**EDIT:** It seems that this issue is more serious than I thought: http://www.newyorker.com/online/blogs/frontal-cortex/2012/06/daniel-kahneman-bias-studies.html
+**EDIT:** Also, check the following: http://www.newyorker.com/online/blogs/frontal-cortex/2012/06/daniel-kahneman-bias-studies.html
 
 <span class='st\_facebook' st\_title='Rationality' st_url='http://www.samanbarghi.com/2010/04/12/rationality/'></span><span st\_via='saman\_b' class='st\_twitter' st\_title='Rationality' st_url='http://www.samanbarghi.com/2010/04/12/rationality/'></span><span class='st\_email' st\_title='Rationality' st_url='http://www.samanbarghi.com/2010/04/12/rationality/'></span><span class='st\_sharethis' st\_title='Rationality' st_url='http://www.samanbarghi.com/2010/04/12/rationality/'></span><span class='st\_fblike' st\_title='Rationality' st_url='http://www.samanbarghi.com/2010/04/12/rationality/'></span><span class='st\_plusone' st\_title='Rationality' st_url='http://www.samanbarghi.com/2010/04/12/rationality/'></span><span class='st\_pinterest' st\_title='Rationality' st_url='http://www.samanbarghi.com/2010/04/12/rationality/'></span>

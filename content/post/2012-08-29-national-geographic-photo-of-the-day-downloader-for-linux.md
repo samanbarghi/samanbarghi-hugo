@@ -10,7 +10,9 @@ title: National Geographic Photo of the day Downloader for Linux
 url: /2012/08/29/national-geographic-photo-of-the-day-downloader-for-linux
 ---
 
-[<img class="wp-image-252 alignleft" title="National Geographic Photo Of the Day" src="http://www.samanbarghi.com/wp-content/uploads/2012/08/57275_1600x1200-wallpaper-cb1343743721-300x225.jpg" alt="National Geographic Photo Of the Day" width="300" height="225" />][1] I am a fan of National Geographic photos on their site, and I also get bored of by my desktop background after a while. So I decided to create a script to download National Geographic photo of the day, and using it as my desktop background. I am using it over Gnome3 (I am using Fedora as I think it&#8217;s more stable than Ubuntu, and I like Gnome3 way better than Unity), but if you are a Unity user it should work for you as well. You can find the script here:
+{{< figure src="/images/ngh-photo.jpg" title="National Geographic's Photo Of the Day" >}}
+
+I am a fan of National Geographic photos on their site, and I also get bored of by my desktop background after a while. So I decided to create a script to download National Geographic photo of the day, and using it as my desktop background. I am using it over Gnome3 (I am using Fedora as I think it&#8217;s more stable than Ubuntu, and I like Gnome3 way better than Unity), but if you are a Unity user it should work for you as well. You can find the script here:
 
 > <a title="https://github.com/samanbarghi/ngphotodownloader" href="https://github.com/samanbarghi/ngphotodownloader" target="_blank">https://github.com/samanbarghi/ngphotodownloader</a>
 
@@ -27,7 +29,7 @@ cd ~/Pictures/
 git clone https://github.com/samanbarghi/ngphotodownloader.git NGWallpapers
 ```
 
-Simply run the script to get the Photo of the day. But doing that manually everyday is not fun. Here cron comes handy. You need to run the script at least once each day, to automate the process you can use cron to download the script and set it as your desktop background: 
+Simply run the script to get the Photo of the day. But doing that manually everyday is not fun. Here cron comes handy. You need to run the script at least once each day, to automate the process you can use cron to download the script and set it as your desktop background:
 
 ```
 0 12 * * * sh /home/yourusername/Pictures/NGWallpapers/ngwallpaper.sh
@@ -40,5 +42,3 @@ In my case since I am running the script on my laptop, and my laptop is not alwa
 ```
 
 Enjoy! <br />
-
-[1]: http://www.samanbarghi.com/wp-content/uploads/2012/08/57275_1600x1200-wallpaper-cb1343743721.jpg
