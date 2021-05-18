@@ -1,0 +1,446 @@
+<!doctype html><html xmlns=http://www.w3.org/1999/xhtml xml:lang=en lang=en-us><head><link href=http://gmpg.org/xfn/11 rel=profile><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><title>Generate C interface from C++ source code using Clang libtooling &#183; Saman Barghi</title><link rel=stylesheet href=http://samanbarghi.com/css/poole.css><link rel=stylesheet href=http://samanbarghi.com/css/hyde.css><link rel=stylesheet href=http://samanbarghi.com/css/poole-overrides.css><link rel=stylesheet href=http://samanbarghi.com/css/hyde-overrides.css><link rel=stylesheet href=http://samanbarghi.com/css/hyde-x.css><link rel=stylesheet href=http://samanbarghi.com/css/highlight/monokai_sublime.css><link rel=stylesheet href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface"><link rel=stylesheet href=//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css><link rel=apple-touch-icon-precomposed sizes=144x144 href=http://samanbarghi.com/touch-icon-144-precomposed.png><link href=http://samanbarghi.com/favicon.png rel=icon><meta name=description content="Using Clang libtooling for LLVM to generate C interface from C++ source code."><meta name=keywords content="Clang,libtooling,LLVM,C,C++,source code generation,source to source translation"><script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','//www.google-analytics.com/analytics.js','ga'),ga('create','UA-48282777-1','auto'),ga('send','pageview')</script></head><body class=theme-base-0c><div class=sidebar><div class="container sidebar-sticky"><div class=sidebar-about><h1>Saman Barghi</h1><p class=lead>Trying to live a better life.</p></div><ul class=sidebar-nav><li class=sidebar-nav-item><a href=http://samanbarghi.com/>Blog</a></li><li class=sidebar-nav-item><a href=http://samanbarghi.com/about/>About</a></li><li class=sidebar-nav-item><a href=http://samanbarghi.com/projects/>Projects</a></li></ul><ul class=sidebar-nav><li class=sidebar-nav-item><a href=https://github.com/samanbarghi><i class="fa fa-github-square fa-3x"></i></a>
+<a href=http://stackexchange.com/users/308492/saman-barghi><i class="fa fa-stack-overflow fa-3x"></i></a>
+<a href=https://ca.linkedin.com/in/samanbarghi><i class="fa fa-linkedin-square fa-3x"></i></a>
+<a href=https://plus.google.com/107308907271825277073><i class="fa fa-google-plus-square fa-3x"></i></a>
+<a href=http://samanbarghi.com/index.xml type=application/rss+xml><i class="fa fa-rss-square fa-3x"></i></a></li></ul><p><script id=flattr>(function(c){var b=document.getElementById(c),a=document.createElement('iframe');a.src='//api.flattr.com/button/view/?uid=&button=compact&url=http://samanbarghi.com/&title=Saman Barghi',a.title='Flattr',a.height=20,a.width=110,a.style.borderWidth=0,b.parentNode.insertBefore(a,b)})('flattr')</script></p><p>Copyright &copy; 2021 <a href=http://samanbarghi.com/license/>License</a><br>Powered by <a href=http://gohugo.io>Hugo</a> and <a href=https://github.com/zyro/hyde-x>Hyde-X</a></p></div></div><div class="content container"><div class=post><h1 class=post-title>Generate C interface from C++ source code using Clang libtooling</h1><span class=post-date>Dec 6, 2016 &#183; 22 minute read &#183; <a href=http://samanbarghi.com/blog/2016/12/06/generate-c-interface-from-c-source-code-using-clang-libtooling/#disqus_thread>Comments</a><br><a class=label href=http://samanbarghi.com/categories/clang>clang</a><a class=label href=http://samanbarghi.com/categories/llvm>llvm</a><a class=label href=http://samanbarghi.com/categories/c>C</a><a class=label href=http://samanbarghi.com/categories/c++>C++</a></span><p>I developed a <a href=https://github.com/samanbarghi/uThreads>concurrent user-thread library</a> using C++, and was looking for a way to provide a C interface and make the functionality available in C. In order to achieve this goal, I started writting a C wrapper interface manually where each public method of a class is mapped to a function in C with the class name followed by the function name. Also, constructors are mapped to class name followed by <em>_create</em> and destructors are mapped to the class name followed by <em>_destory</em>. To create an object, memory is allocated using <em>new</em> in C++ and the pointer is casted to a struct pointer in C using <em>reinterpret_cast</em>. The casted pointer in C is passed to member functions of that object and is used to call the member function of the instance. To delete the object, the pointer is passed to the <em>_destroy</em> function and <em>delete</em> is used to call the deconstructor. For example, for the calss Rectangle below stored in <code>Rectangle.h</code>:</p><pre><code>class Rectangle{
+  private:
+    int length;
+    int width;
+  public:
+  Rectangle(int l, int w): length(l), width(w){};
+  int area(){ return length*width;};
+  perimeter() { return 2*(lendth+width);};
+  ~Rectangle(){};
+}
+</code></pre><p>Two files <code>cwrapper.h</code> and <code>cwrapper.cpp</code> are created to map the Rectangle class to C:</p><pre><code>#ifdef __cplusplus
+extern &quot;C&quot;{
+#endif
+
+/* Wrapper struct to hold a pointer to
+   Rectangle object in C  */
+struct      WRectangle;             
+typedef     struct WRectangle WRectangle;
+
+/* Wrapper for the constructor */
+WRectangle*   Rectangle_create(int l, int w);     
+/* Wrapper for destructor */
+void  Rectangle_destroy(WRectangle* self);
+/* Wrapper for method area */
+int Rectangle_area(WRectangle* self);
+/* Wrapper for method perimeter */
+int Rectangle_perimeter(WRectangle* self);
+#ifdef __cplusplus
+}
+#endif
+</code></pre><pre><code>#include &quot;Rectangle.h&quot;
+#include &quot;cwrapper.h&quot;
+
+#ifdef __cplusplus
+extern &quot;C&quot;{
+#endif
+
+WRectangle*   Rectangle_create(int l, int w){
+  //calling the constructor and casting the pointer to WRectangle
+  return reinterpret_cast&lt;WRectangle*&gt;( new Rectangle(l,w) );
+}
+void  Rectangle_destroy(WRectangle* self){
+  //calling the destructor
+  delete reinterpret_cast&lt;Rectangle*&gt;(self);
+}
+int Rectangle_area(WRectangle* self){
+    return reinterpret_cast&lt;Rectangle*&gt;(self)-&gt;area();
+}
+int Rectangle_perimeter(WRectangle* self){
+    return reinterpret_cast&lt;Rectangle*&gt;(self)-&gt;perimeter();
+}
+#ifdef __cplusplus
+}
+#endif
+</code></pre><p>The wrapper functions can be used in C source code to interact with the C++ objects. I manually created two files <a href=https://github.com/samanbarghi/uThreads/blob/v0.3.0/src/cwrapper.h>cwrapper.h</a> and <a href=https://github.com/samanbarghi/uThreads/blob/v0.3.0/src/cwrapper.cpp>cwrapper.cpp</a> for uThreads library which make the library available in C. These files were maintainable when the library was small and there were not many classes and functions to map. However, as the library grew it became harder and harder to maintain the cwrapper functions for all the classes. Thus, I started exploring other options to generate such interface automatically, where the C++ source code is parsed and analysed and various information is extracted automatically, or to word it better I needed a compiler frontend!</p><p><a href=http://clang.llvm.org/docs/LibTooling.html>Clang libtooling</a> supports writing standalone tools based on Clang. To generate the C interface, I use <a href=http://clang.llvm.org/docs/LibASTMatchersReference.html>Clang AST Matcher</a> to find public methods of specific classes and generate the C functions based on that. To get familiar with Clang AST you can refer to <a href=http://clang.llvm.org/docs/IntroductionToTheClangAST.html>this articls</a>.</p><p>For this tool to work, you need LLVM and Clang installed on your system. You can either <a href=http://clang.llvm.org/get_started.html>build them from source</a>, which will take a long time to finish, or you can install precompiled packages for your operating system. I am using Calng version 4.0.0 and LLVM version 4.0.0, but I tested the code with Clang and LLVM v3.8 and it works fine. To install Clang and LLVM under ubuntu issue <code>sudo apt-get install llvm clang</code>.</p><p>I am going to explain how I used Clang libtooling to generate the cwrapper files for uThreads. The finished code can be found <a href=https://github.com/samanbarghi/CPP2C>here</a>. This is not used to generate the actual cwrapper files under uThreads, as it still needs some improvements before it can be used in production. Before I explain the code, let&rsquo;s go through some rules and issues for generating the cwrapper functions:</p><ul><li>Cwrapper functions should only be generated for static and public member functions of each class. There is no point to map private member functions of classes to C.</li><li>I am not going to map operator overloading, copy constructor and move constructor functions to C, as uThreads classes do not have any of that</li><li>uThreads does not have a namespace yet (it will be added in the future), so there should be a way of figuring out the name of the classes under uThreads that I want to map to C. If there was a namespace, I could simply find all the classes under that namespace and use them to achieve the goal. But for now, I am using a list of class names to map to C stored in <code>std::vector</code>.</li><li>Since function overloading is not supported in C, there should be a way to map overloaded functions to C. For now I use numbering to map the overloaded functions to C. e.g., uThread_create and uThread_create_1 are constructors for uThread class.</li><li>Template functions are not supported in the current version and will be supported in the future.</li><li>Here, all the functions only accepts builtin types and references to uThreads objects, thus make it easy to generate the C counterparts. However, if objects from outside libraries or even standard libraries are passed to or returned from the functions, it needs additional effort to make it work. Since those classes should be listed separately and a struct in C should be generated for them and a pointer to them stored in the C code.</li></ul><p>Let&rsquo;s also take a look at the generated AST by Clang. If you pass <code>-Xclang -ast-dump</code> to clang, you can see the AST that is generated by clang. So issueing the following command in the root directory of uThreads will print out the AST in a simple text format:</p><pre><code>clang++ -Xclang -ast-dump -fsyntax-only -I./src -std=c++11 include/uThreads.h
+</code></pre><p><code>include/uThreads.h</code> is the file that includes all the header files in uThreads, thus all uThreads classes and functions are present when passing the file to clang. Also, since many stdlib and system files are included the resulting AST is going to be very large, as it covers all the included files as well. Here are AST nodes related to constructor, destructor, and method <code>accept</code> from class Connection in uThreads:</p><p><a href=/images/2016-12-06/ast-dump.png><figure><img src=/images/2016-12-06/ast-dump.png><figcaption><h4>AST Dump</h4></figcaption></figure></a></p><p>AST node related to constructor is of type <code>CXXConstructorDecl</code>, AST node related to the destructor is of type <code>CXXDestructorDecl</code>, and the accept method is of type <code>CXXMethodDecl</code>. <a href=http://clang.llvm.org/doxygen/classclang_1_1CXXConstructorDecl.html>CXXConstructorDecl</a> and <a href=http://clang.llvm.org/doxygen/classclang_1_1CXXDestructorDecl.html>CXXDestructorDecl</a> are both childern of class <code>CXXMethodDecl</code>. Hence, by finding all method declarations, i.e. <code>CXXMethodDecl</code>, in AST we meet all the requirments to generate the C interface.</p><p><a href=http://clang.llvm.org/docs/LibASTMatchersReference.html>AST matchers</a> are used to find and match AST nodes and perform a specific task based on the matched node. To understand the idea further, let&rsquo;s use <code>clang-query</code> which can be used to test AST matchers. For instance to query the uThreads AST, issue the following command:</p><pre><code>clang-query include/uThreads.h -- -I./src -std=c++11
+</code></pre><p>It enters <code>clang-query</code> console and you can issue <code>help</code> to see the available commands. Let&rsquo;s use the <code>match</code> command to find all the <code>CXXMethodDecl</code> in the AST:</p><pre><code>clang-query&gt; match cxxMethodDecl()
+</code></pre><p>As before, since many files are included in the source code, the output is going to be large and includes all the methods, constructors and destructors from uThreads and all other classes included. Here is part of the output for class <code>Connection</code>:</p><pre><code>Match #6987:
+
+./src/io/Network.h:61:5: note: &quot;root&quot; binds here
+    Connection() :
+    ^~~~~~~~~~~~~~
+
+Match #6988:
+
+./src/io/Network.h:72:5: note: &quot;root&quot; binds here
+    Connection(int fd) :
+    ^~~~~~~~~~~~~~~~~~~~
+
+Match #6989:
+
+./src/io/Network.h:87:5: note: &quot;root&quot; binds here
+    Connection(int domain, int type, int protocol) throw(std::system_error);
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Match #6990:
+
+./src/io/Network.h:89:5: note: &quot;root&quot; binds here
+    ~Connection();
+    ^~~~~~~~~~~~~
+
+Match #6991:
+
+./src/io/Network.h:99:5: note: &quot;root&quot; binds here
+    int accept(Connection *conn, struct sockaddr *addr, socklen_t *addrlen);
+    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+</code></pre><p>However, for the C interface we are only interested in public methods. So let&rsquo;s change the query to reflect that:</p><pre><code>clang-query&gt; match cxxMethodDecl(isPublic())
+</code></pre><p>This time only the public methods are printed to the output. Also, since we are only interested in classes defined in uThreads library, I am going to use specific class names to limit the output. For example, to see all the public methods from class <code>Connection</code> issue the following commands:</p><pre><code>clang-query&gt; set output dump
+clang-query&gt; match cxxMethodDecl(isPublic(), ofClass(hasName(&quot;Connection&quot;)))
+</code></pre><p>This time I changed the output to show AST dump instead of diagnostics, which results in the following:</p><pre><code>Binding for &quot;root&quot;:
+CXXConstructorDecl 0x3712520 &lt;./src/io/Network.h:61:5, line:64:5&gt; line:61:5 Connection 'void (void)'
+|-CXXCtorInitializer Field 0x3712178 'pd' 'class PollData *'
+| `-CXXDefaultInitExpr 0x37162d8 &lt;col:5&gt; 'class PollData *'
+|-CXXCtorInitializer Field 0x37121d0 'fd' 'int'
+| `-UnaryOperator 0x3716260 &lt;line:62:16, col:17&gt; 'int' prefix '-'
+|   `-IntegerLiteral 0x3716240 &lt;col:17&gt; 'int' 1
+|-CompoundStmt 0x37163a8 &lt;col:19, line:64:5&gt;
+| `-CXXMemberCallExpr 0x3716380 &lt;line:63:9, col:14&gt; 'void'
+|   `-MemberExpr 0x3716348 &lt;col:9&gt; '&lt;bound member function type&gt;' -&gt;init 0x3712298
+|     `-CXXThisExpr 0x3716330 &lt;col:9&gt; 'class Connection *' this
+`-FullComment 0x3940930 &lt;line:56:7, line:59:47&gt;
+  |-ParagraphComment 0x3940800 &lt;line:56:7&gt;
+  | `-TextComment 0x39407d0 &lt;col:7&gt; Text=&quot; &quot;
+  |-BlockCommandComment 0x3940820 &lt;col:8, col:52&gt; Name=&quot;brief&quot;
+  | `-ParagraphComment 0x3940880 &lt;col:14, col:52&gt;
+  |   `-TextComment 0x3940850 &lt;col:14, col:52&gt; Text=&quot; Create a Connection that does not have&quot;
+  `-ParagraphComment 0x39408f0 &lt;line:58:7, line:59:47&gt;
+    |-TextComment 0x39408a0 &lt;line:58:7, col:65&gt; Text=&quot; This is useful for accept or socket functions that require&quot;
+    `-TextComment 0x39408c0 &lt;line:59:7, col:47&gt; Text=&quot; a Connection object without fd being set&quot;
+
+
+Match #2:
+
+Binding for &quot;root&quot;:
+CXXConstructorDecl 0x37126a0 &lt;./src/io/Network.h:72:5, line:75:5&gt; line:72:5 Connection 'void (int)'
+|-ParmVarDecl 0x3712618 &lt;col:16, col:20&gt; col:20 used fd 'int'
+|-CXXCtorInitializer Field 0x3712178 'pd' 'class PollData *'
+| `-CXXDefaultInitExpr 0x3716460 &lt;col:5&gt; 'class PollData *'
+|-CXXCtorInitializer Field 0x37121d0 'fd' 'int'
+| `-ImplicitCastExpr 0x3716420 &lt;line:73:16&gt; 'int' &lt;LValueToRValue&gt;
+|   `-DeclRefExpr 0x37163c8 &lt;col:16&gt; 'int' lvalue ParmVar 0x3712618 'fd' 'int'
+|-CompoundStmt 0x3716530 &lt;col:20, line:75:5&gt;
+| `-CXXMemberCallExpr 0x3716508 &lt;line:74:9, col:14&gt; 'void'
+|   `-MemberExpr 0x37164d0 &lt;col:9&gt; '&lt;bound member function type&gt;' -&gt;init 0x3712298
+|     `-CXXThisExpr 0x37164b8 &lt;col:9&gt; 'class Connection *' this
+`-FullComment 0x3940ba0 &lt;line:66:7, line:70:45&gt;
+  |-ParagraphComment 0x39409d0 &lt;line:66:7&gt;
+  | `-TextComment 0x39409a0 &lt;col:7&gt; Text=&quot; &quot;
+  |-BlockCommandComment 0x39409f0 &lt;col:8, line:67:7&gt; Name=&quot;brief&quot;
+  | `-ParagraphComment 0x3940a70 &lt;line:66:14, line:67:7&gt;
+  |   |-TextComment 0x3940a20 &lt;line:66:14, col:61&gt; Text=&quot; Create a connection object with the provided fd&quot;
+  |   `-TextComment 0x3940a40 &lt;line:67:7&gt; Text=&quot; &quot;
+  |-ParamCommandComment 0x3940a90 &lt;col:8, col:16&gt; [in] implicitly Param=&quot;fd&quot; ParamIndex=0
+  | `-ParagraphComment 0x3940af0 &lt;&lt;invalid sloc&gt;&gt;
+  `-ParagraphComment 0x3940b60 &lt;line:69:7, line:70:45&gt;
+    |-TextComment 0x3940b10 &lt;line:69:7, col:71&gt; Text=&quot; If the connection is already established by other means, set the&quot;
+    `-TextComment 0x3940b30 &lt;line:70:7, col:45&gt; Text=&quot; fd and add it to the polling structure&quot;
+
+
+Match #3:
+
+Binding for &quot;root&quot;:
+CXXConstructorDecl 0x37129b0 &lt;./src/io/Network.h:87:5, col:75&gt; col:5 Connection 'void (int, int, int) throw(std::system_error)'
+|-ParmVarDecl 0x3712798 &lt;col:16, col:20&gt; col:20 domain 'int'
+|-ParmVarDecl 0x3712808 &lt;col:28, col:32&gt; col:32 type 'int'
+|-ParmVarDecl 0x3712878 &lt;col:38, col:42&gt; col:42 protocol 'int'
+`-FullComment 0x3940ec0 &lt;line:78:7, line:86:5&gt;
+  |-ParagraphComment 0x3940c40 &lt;line:78:7&gt;
+  | `-TextComment 0x3940c10 &lt;col:7&gt; Text=&quot; &quot;
+  |-BlockCommandComment 0x3940c60 &lt;col:8, line:79:7&gt; Name=&quot;brief&quot;
+  | `-ParagraphComment 0x3940ce0 &lt;line:78:14, line:79:7&gt;
+  |   |-TextComment 0x3940c90 &lt;line:78:14, col:65&gt; Text=&quot; Same as socket syscall adds | SOCK_NONBLOCK to type&quot;
+  |   `-TextComment 0x3940cb0 &lt;line:79:7&gt; Text=&quot; &quot;
+  |-BlockCommandComment 0x3940d00 &lt;col:8, col:37&gt; Name=&quot;return&quot;
+  | `-ParagraphComment 0x3940d60 &lt;col:15, col:37&gt;
+  |   `-TextComment 0x3940d30 &lt;col:15, col:37&gt; Text=&quot; same as socket syscall&quot;
+  |-ParagraphComment 0x3940e20 &lt;line:81:7, line:84:29&gt;
+  | |-TextComment 0x3940d80 &lt;line:81:7, col:69&gt; Text=&quot; Throws a std::system_error exception. Do not call from C code.&quot;
+  | |-TextComment 0x3940da0 &lt;line:82:7, col:68&gt; Text=&quot; The unerlying socket is always nonbelocking. This is achieved&quot;
+  | |-TextComment 0x3940dc0 &lt;line:83:7, col:60&gt; Text=&quot; by adding a  (| SOCK_NONBLOCK) to type, thus requires&quot;
+  | `-TextComment 0x3940de0 &lt;line:84:7, col:29&gt; Text=&quot; linux kernels &gt; 2.6.27&quot;
+  `-ParagraphComment 0x3940e70 &lt;line:86:1, col:5&gt;
+    `-TextComment 0x3940e40 &lt;col:1, col:5&gt; Text=&quot;     &quot;
+
+
+Match #4:
+
+Binding for &quot;root&quot;:
+CXXDestructorDecl 0x3712ad0 &lt;./src/io/Network.h:89:5, col:17&gt; col:5 ~Connection 'void (void)' noexcept-unevaluated 0x3712ad0
+
+</code></pre><p>We can use the final version of the matcher to find the public methods of interest and generate C source code based on that. We start by creating an option category which is applied to all command-line options. Also you can define new options for the command line tool using option tables, so arguments can be passed to your program. I am not going to use that feature in the current implementation, but included &ldquo;-o&rdquo; option just to show how it&rsquo;s done:</p><pre><code>/** Options **/
+static cl::OptionCategory CPP2CCategory(&quot;CPP2C options&quot;);
+static std::unique_ptr&lt;opt::OptTable&gt; Options(createDriverOptTable());
+static cl::opt&lt;std::string&gt; OutputFilename(&quot;o&quot;, cl::desc(Options-&gt;getOptionHelpText((options::OPT_o))));
+</code></pre><p>I also create a struct with custom string streams which is used to generate the final C <code>.h</code> and <code>.c</code> files, a vector of the name of the classes from uThreads to be explored and a map of function names to an integer, which is used to keep track of functions and detect overleaded functions.</p><pre><code>/** Classes to be mapped to C **/
+struct OutputStreams{
+	string headerString;
+	string bodyString;
+
+	llvm::raw_string_ostream HeaderOS;
+	llvm::raw_string_ostream BodyOS;
+
+	OutputStreams() : headerString(&quot;&quot;), bodyString(&quot;&quot;), HeaderOS(headerString), BodyOS(bodyString){};
+};
+
+
+vector&lt;string&gt; ClassList = {&quot;uThread&quot;, &quot;kThread&quot;, &quot;Cluster&quot;, &quot;Connection&quot;, &quot;Mutex&quot;, &quot;OwnerLock&quot;, &quot;ConditionVariable&quot;, &quot;Semaphore&quot;, &quot;uThreadPool&quot;};
+
+map&lt;string, int&gt; funcList;
+</code></pre><p>Next, we write the main function:</p><pre><code>int main(int argc, const char **argv) {
+	// parse the command-line args passed to your code
+	CommonOptionsParser op(argc, argv, CPP2CCategory);
+	// create a new Clang Tool instance (a LibTooling environment)
+	ClangTool Tool(op.getCompilations(), op.getSourcePathList());
+
+
+	// run the Clang Tool, creating a new FrontendAction
+	return Tool.run(newFrontendActionFactory&lt;MyFrontendAction&gt;().get());
+}
+</code></pre><p>Whithin the main function, we pass the OptionCategory to the <code>CommonOptionsParser</code> along with argc and argv to parse the arguments passed to the code. Next, We create a <code>ClangTool</code> instance and pass the Compilation and source path lists to it. Finally, the ClangTool needs a new FrontendAction for each translation unit we run
+on. Thus, it takes a FrontendActionFactory as parameter. To create a <code>FrontendActionFactory</code> from a given FrontendAction type, we call <code>newFrontendActionFactory&lt;MyFrontendAction>()</code>. <code>MyFrontendAction</code> is a <code>ASTFrontendAction</code> which is used for AST consumer-based frontend actions, and since we are going to rely on AST matchers we use the <code>ASTFrontendAction</code>.</p><pre><code>// For each source file provided to the tool, a new FrontendAction is created.
+ class MyFrontendAction: public ASTFrontendAction {
+public:
+	MyFrontendAction() {
+		OS.HeaderOS &lt;&lt; 	&quot;#ifndef UTHREADS_CWRAPPER_H\n&quot;
+						&quot;#define UTHREADS_CWRAPPER_H_\n&quot;
+						&quot;#include &lt;pthread.h&gt;\n&quot;
+						&quot;#include &lt;sys/types.h&gt;\n&quot;
+						&quot;#include &lt;sys/socket.h&gt;\n&quot;
+						&quot;#include &lt;inttypes.h&gt;\n\n&quot;
+
+						&quot;#ifdef __cplusplus\n&quot;
+						&quot;extern \&quot;C\&quot;{\n&quot;
+						&quot;#endif\n&quot;
+						&quot;#include &lt;stdbool.h&gt;\n&quot;;
+		OS.BodyOS &lt;&lt; &quot;#include \&quot;generic/basics.h\&quot;\n&quot;
+					&quot;#include \&quot;cwrapper.h\&quot;\n&quot;
+					&quot;#include \&quot;runtime/uThread.h\&quot;\n&quot;
+					&quot;#include \&quot;runtime/uThreadPool.h\&quot;\n&quot;
+					&quot;#include \&quot;runtime/kThread.h\&quot;\n&quot;
+					&quot;#include \&quot;io/Network.h\&quot;\n&quot;
+						&quot;#ifdef __cplusplus\n&quot;
+						&quot;extern \&quot;C\&quot;{\n&quot;
+						&quot;#endif\n&quot;;
+
+	}
+
+	void EndSourceFileAction() override {
+
+		StringRef headerFile(&quot;cwrapper.h&quot;);
+		StringRef bodyFile(&quot;cwrapper.cpp&quot;);
+
+        // Open the output file
+        std::error_code EC;
+        llvm::raw_fd_ostream HOS(headerFile, EC, llvm::sys::fs::F_None);
+        if (EC) {
+            llvm::errs() &lt;&lt; &quot;while opening '&quot; &lt;&lt; headerFile&lt;&lt; &quot;': &quot;
+            &lt;&lt; EC.message() &lt;&lt; '\n';
+            exit(1);
+        }
+        llvm::raw_fd_ostream BOS(bodyFile, EC, llvm::sys::fs::F_None);
+        if (EC) {
+            llvm::errs() &lt;&lt; &quot;while opening '&quot; &lt;&lt; bodyFile&lt;&lt; &quot;': &quot;
+            &lt;&lt; EC.message() &lt;&lt; '\n';
+            exit(1);
+        }
+
+
+		OS.HeaderOS &lt;&lt; &quot;#ifdef __cplusplus\n&quot;
+						&quot;}\n&quot;
+						&quot;#endif\n&quot;
+						&quot;#endif /* UTHREADS_CWRAPPER_H_ */\n&quot;;
+
+		OS.BodyOS&lt;&lt; &quot;#ifdef __cplusplus\n&quot;
+						&quot;}\n&quot;
+						&quot;#endif\n&quot;;
+
+		OS.HeaderOS.flush();
+		OS.BodyOS.flush();
+		HOS&lt;&lt; OS.headerString &lt;&lt; &quot;\n&quot;;
+		BOS&lt;&lt; OS.bodyString &lt;&lt; &quot;\n&quot;;
+
+	}
+
+	std::unique_ptr&lt;ASTConsumer&gt; CreateASTConsumer(CompilerInstance &amp;CI,
+			StringRef file) override {
+
+		return llvm::make_unique&lt;MyASTConsumer&gt;(OS);
+	}
+
+private:
+	OutputStreams OS;
+};
+</code></pre><p><code>MyFrontendAction</code> includes an instance of <code>OutputStreams</code> that has two string streams, one for the header file and the other one for the <code>.cpp</code> file. Both streams are intialized with the required include statements and <code>#ifdef</code> statements to be placed at the beginning of the file. The <code>EndSourceFileAction</code> is a callback at the end of processing a single input, and is used to append required strings to the end of the streams and save the streams to <code>cwrapper.h</code> and <code>cwrapper.cpp</code> files. Finally, <code>CreateASTConsumer</code> is called to create the AST consumer object for this action. Here an instance of <code>MyASTConsumer</code> is created and returned, we also pass the <code>OutputStreams</code> instance by reference, so later it can be passed to handlers. AST consumer, in our case, is responsible for registering matchers and run them over the AST. Here, the list of classes is used along with the <code>cxxMethodDecl</code> matcher we came up with earlier to match the methods of interest.</p><pre><code>// Implementation of the ASTConsumer interface for reading an AST produced
+// by the Clang parser. It registers a couple of matchers and runs them on
+// the AST.
+class MyASTConsumer: public ASTConsumer {
+public:
+	MyASTConsumer(OutputStreams&amp; os) : OS(os),
+			HandlerForClassMatcher(os){
+		// Add a simple matcher for finding 'if' statements.
+
+		for(string&amp; className : ClassList){
+			OS.HeaderOS &lt;&lt; &quot;struct      W&quot;&lt;&lt; className &lt;&lt; &quot;; \n&quot;
+						   &quot;typedef     struct W&quot;&lt;&lt; className &lt;&lt; &quot; W&quot;&lt;&lt; className &lt;&lt; &quot;;\n&quot;;
+			//oss.push_back(std::move(os))
+
+			DeclarationMatcher classMatcher = cxxMethodDecl(isPublic(), ofClass(hasName(className))).bind(&quot;publicMethodDecl&quot;);
+			Matcher.addMatcher(classMatcher, &amp;HandlerForClassMatcher);
+		}
+
+	}
+
+	void HandleTranslationUnit(ASTContext &amp;Context) override {
+		// Run the matchers when we have the whole TU parsed.
+		Matcher.matchAST(Context);
+	}
+
+private:
+	OutputStreams&amp; OS;
+	classMatchHandler HandlerForClassMatcher;
+
+	MatchFinder Matcher;
+};
+</code></pre><p><code>MyASTConsumer</code> has an instance of a <code>classMatchHandler</code> and a <code>MatchFinder</code>. <code>MatchFinder</code> is used to register matchers and handlers and to apply the matchers to AST Context and call the related handlers when a match is found. In the constructor, we add all the matchers using <code>addMatcher</code>, and under the <code>HandleTranslationUnit</code> we call <code>matchAST</code> to perform the matches and do the callbacks. We also bind the match to a string (<code>publicMethodDecl</code>), which is used later to differentiate among matchers. Also, notice that for each class a struct is generated with name <code>WclassName</code> along with a typedef with the same name. As explained eariler, this struct is used to hold a pointer to the instance of the class in C.</p><p>Class <code>classMatchHandler</code> is a child of <code>MatchFinder::MatchCallBack</code> class, and is used to perform the required task after a match is found. We also override member function <code>run</code>, that accepts a <code>MatchResult</code> and is called upon finding a match. The first step is to check whether the matched node with the provided string <code>publicMethodDecl</code> is of type <code>cxxMethodDecl</code>.</p><pre><code>if (const CXXMethodDecl *cmd = Result.Nodes.getNodeAs&lt;CXXMethodDecl&gt;(&quot;publicMethodDecl&quot;)){
+			string methodName = &quot;&quot;;
+			string className = cmd-&gt;getParent()-&gt;getDeclName().getAsString();
+			string returnType = &quot;&quot;;
+			string returnCast = &quot;&quot;;
+			bool shouldReturn, isPointer;
+			string self = &quot;W&quot; + className + &quot;* self&quot;;
+			string separator = &quot;, &quot;;
+			string bodyEnd = &quot;&quot;;
+
+			std::stringstream functionBody;
+</code></pre><p>If so, we create a few of strings variables in order to generate the final C method. <code>className</code> captures the name of the parent class of the method, i.e. the name used to find the method in the matcher, by getting the declaration name of the parent class as string. To map member functions to C, there is a need to send the pointer to the object as the first argument, so the string <code>self</code> contains the string that represents the pointer to the struct in C that is named as <em>self</em>. The rest of the variables are explained later.</p><p>As explained eariler, operator overloading is ignored and not mapped to C, thus:</p><pre><code>//ignore operator overloadings
+if(cmd-&gt;isOverloadedOperator())
+  return;
+</code></pre><p>Next, we check whether the matched method is a constructor:</p><pre><code>//constructor
+if (const CXXConstructorDecl* ccd = dyn_cast&lt;CXXConstructorDecl&gt;(cmd)) {
+  if(ccd-&gt;isCopyConstructor() || ccd-&gt;isMoveConstructor()) return;
+  methodName = &quot;_create&quot;;
+  returnType = &quot;W&quot; + className + &quot;*&quot;;
+  self = &quot;&quot;;
+  separator = &quot;&quot;;
+  functionBody &lt;&lt; &quot;return reinterpret_cast&lt;&quot;&lt;&lt; returnType &lt;&lt; &quot;&gt;( new &quot; &lt;&lt; className &lt;&lt; &quot;(&quot;;
+  bodyEnd += &quot;))&quot;;
+</code></pre><p>If <code>cmd</code> can be dynamically casted to <code>CXXConstructorDecl</code>, it means the method is a constructor. If the constructor is a copy constructor or move constructor we are not going to map it to C as explained above. The final method name should be <code>className_create</code>, so we set the <code>methodName</code> to be <code>_create</code> and later concatenate it to the calss name. Also, since the constructor creates an instance of the object and return a pointer to the created object, the return type should be the same as the struct type that holds the pointer to the object in C. <code>self</code> string will be empty, since there is no instance of the object yet to be passed to the constructor. <code>separator</code> is used to separate function arguments in the string, and since there is no self, the next argument do not need a comma before it. <code>functionBody</code> is a string stream that holds the information related to the function definition. For the constructor, we know that it returns the casted pointer to the object created by <code>new</code>, so the related string is generated accordingly. <code>bodyEnd</code> holds the string to complete the function definition, and since there are two open parentheses, they should be closed after arguments are placed in between the parentheses.</p><p>Next, we check wether the method is a destructor:</p><pre><code>}else if (isa&lt;CXXDestructorDecl&gt;(cmd)) {
+methodName = &quot;_destroy&quot;;
+returnType = &quot;void&quot;;
+functionBody &lt;&lt; &quot; delete reinterpret_cast&lt;&quot;&lt;&lt;className &lt;&lt; &quot;*&gt;(self)&quot;;
+</code></pre><p>If the method declaration <code>isa&lt;CXXDestructorDecl></code>, it means the method is a destructor. Thus, the <code>methodName</code> should be <code>_destroy</code>, <code>returnType</code> should be void, and <code>functionBody</code> just calls <code>delete</code> on the casted pointer.</p><p>If the method is not a constructor, destructor, or overloaded operator, it is a member or static function:</p><pre><code>}else{
+  methodName = &quot;_&quot; + cmd-&gt;getNameAsString();
+  const QualType qt = cmd-&gt;getReturnType();
+  std::tie(returnType, returnCast, isPointer, shouldReturn) = determineCType(qt);
+
+  //should this function return?
+  if(shouldReturn)
+  	functionBody &lt;&lt; &quot;return &quot;;
+
+  if(returnCast != &quot;&quot;){
+  	//if not pointer and it needs to be casted, then return the pointer
+  	if(!isPointer)
+  		functionBody &lt;&lt; &quot;&amp;&quot;;
+  	functionBody &lt;&lt; &quot;reinterpret_cast&lt;&quot;&lt;&lt; returnType &lt;&lt; &quot;&gt;(&quot;;
+  	bodyEnd += &quot;)&quot;;
+  }
+
+  //if Static call it properly
+  if(cmd-&gt;isStatic())
+  	functionBody &lt;&lt;className &lt;&lt; &quot;::&quot; &lt;&lt; cmd-&gt;getNameAsString() &lt;&lt; &quot;(&quot;;
+  //if not  use the passed object to call the method
+  else
+  	functionBody &lt;&lt; &quot;reinterpret_cast&lt;&quot;&lt;&lt;className&lt;&lt;&quot;*&gt;(self)-&gt;&quot; &lt;&lt; cmd-&gt;getNameAsString() &lt;&lt; &quot;(&quot;;
+
+  bodyEnd += &quot;)&quot;;
+}
+</code></pre><p>The <code>methodName</code> in this case is the same as the name of the method with prefix <code>_</code>. Next step is to determine what is the return type of the method, for that purpose we use <code>getReturnType</code> to find the <code>QualType</code>. Then, we pass the <code>QualType</code> to the helper function <code>determineCType</code>, in order to find the type, whether it needs casting, whether it&rsquo;s a pointer and whether it&rsquo;s a void type. Here is the definition of the <code>determineCType</code> function:</p><pre><code>tuple&lt;string, string, bool, bool&gt; determineCType(const QualType&amp; qt){
+
+  string CType = &quot;&quot;;
+  string CastType = &quot;&quot;; //whether this should be casted or not
+  bool 	isPointer = false;
+  bool 	shoulReturn = true;
+
+  //if it is builtin type use it as is
+  if(qt-&gt;isBuiltinType() || (qt-&gt;isPointerType() &amp;&amp; qt-&gt;getPointeeType()-&gt;isBuiltinType())){
+    CType = qt.getAsString();
+    if(qt-&gt;isVoidType())
+      shoulReturn = false;
+  //if it is a CXXrecordDecl then return a pointer to WName*
+  }else if(qt-&gt;isRecordType()){
+    const CXXRecordDecl* crd = qt-&gt;getAsCXXRecordDecl();
+    string recordName = crd-&gt;getNameAsString();
+    CType = &quot;W&quot; + recordName + &quot;*&quot;;
+    CastType = recordName+ &quot;*&quot;;
+
+  }else if( (qt-&gt;isReferenceType() || qt-&gt;isPointerType()) &amp;&amp; qt-&gt;getPointeeType()-&gt;isRecordType()){
+    isPointer = true; //to properly differentiate among cast types
+    const CXXRecordDecl* crd = qt-&gt;getPointeeType()-&gt;getAsCXXRecordDecl();
+    string recordName = crd-&gt;getNameAsString();
+    if ( std::find(ClassList.begin(), ClassList.end(), recordName) != ClassList.end() ){
+      CType = &quot;W&quot; + recordName + &quot;*&quot;;
+      CastType = recordName + &quot;*&quot;;
+    }else{
+      CType = recordName+&quot;*&quot;;
+    }
+
+  }
+  return make_tuple(CType, CastType, isPointer, shoulReturn);
+
+}
+</code></pre><p>This function returns 4 variables; one that reperesents the type that should be returned, one that shows what the return type should be casted from, and two booleans reperesenting whether the type is a pointer and whether the function needs a <code>return</code> statement before the function call. First, if the type is a builtin type, or is a pointer to a builtin type, there is no need to cast it (castType is left empty), and if this builtin type is <code>void</code> there is no need to put the <code>return</code> keyword before calling the function. Otherwise, if the type is a record type (class or struct), since in uThreads all functions only return record types that is defined whitin uThreads library, we can be sure that by casting the return type to <code>WclassName</code> struct, we are returning the instance of the object (it can be problematic if the returned object needs to be copied, since the original memory might be freed at the end of the function and the returned pointer is not valid anymore. But since in uThreads all objects are returned either by reference or only pointers are being returned, this condition does not apply to uThreads. Thus, it should be modified if you need to use it in another projects. This part is mainly relevant for function arguments, when later <code>determineCType</code> is called to determine the type of the passed arguments). Finally, if the return type is a pointer or reference to a record type, and the pointer is to a class under the uThreads list of classes, return the <code>WclassName*</code>, otherwise return the pointer itself.</p><p>Continuing on determining the return type, if the <code>shouldRetran</code> flag is true, a <code>return</code> keyword is added before the function call. If the return variable requires casting, insert <code>reinterpret_cast</code> along with the C return type before calling the function. Finally, generate the function call: if the function is static, call it by using <code>className::methodName</code>, and if not use <code>reinterpret_cast</code> to cast the passed <code>self</code> pointer to the object pointer and call the function by <code>self->methodName</code>.</p><p>Next, let&rsquo;s generate the function declaration in C by concatenating the related strings together:</p><pre><code>std::stringstream funcname;
+funcname &lt;&lt; returnType &lt;&lt; &quot; &quot; &lt;&lt; className &lt;&lt; methodName;
+
+auto it = funcList.find(funcname.str());
+
+if(it != funcList.end()){
+	it-&gt;second++;
+	funcname &lt;&lt; &quot;_&quot; &lt;&lt; it-&gt;second ;
+}else{
+	funcList[funcname.str()] = 0;
+}
+
+funcname &lt;&lt; &quot;(&quot; &lt;&lt; self;
+</code></pre><p>Function name is of form <code>returnType className_methodName</code> in C. In addition, as explained earlier, if there is any function overloading, a number is added to the end of the function name. Thus, a map of function names to integer is used to keep track of the number of times the function of the specified class appeared. If it appears more than one time, a suffix <code>_n</code> is added to the end of the function, where <code>n</code> is the number of times the function appeared. Finally, we add a parentheses to the end of the function name, along with the <code>self</code> string, that reperesnts whether a pointer to the object is passed to the function or not, and start generating the argument list:</p><pre><code>for(unsigned int i=0; i&lt;cmd-&gt;getNumParams(); i++)
+{
+  const QualType qt = cmd-&gt;parameters()[i]-&gt;getType();
+  std::tie(returnType, returnCast, isPointer, shouldReturn) = determineCType(qt);
+  funcname &lt;&lt; separator &lt;&lt; returnType &lt;&lt; &quot; &quot;;
+  funcname &lt;&lt; cmd-&gt;parameters()[i]-&gt;getQualifiedNameAsString() &lt;&lt; &quot;&quot;;
+
+  if(i !=0 )
+    functionBody &lt;&lt; separator;
+  if(returnCast == &quot;&quot;)
+    functionBody &lt;&lt; cmd-&gt;parameters()[i]-&gt;getQualifiedNameAsString();
+  else{
+    if(!isPointer)
+      functionBody &lt;&lt; &quot;*&quot;;
+    functionBody &lt;&lt; &quot;reinterpret_cast&lt;&quot; &lt;&lt; returnCast &lt;&lt; &quot;&gt;(&quot;&lt;&lt; cmd-&gt;parameters()[i]-&gt;getQualifiedNameAsString() &lt;&lt; &quot;)&quot;;
+
+  }
+
+  string separator = &quot;, &quot;;
+}
+</code></pre><p>To generate the argument list in C, we iterate through the method arguments by using <code>getNumParams</code> and <code>parameters</code> array. The type of the argument in C is determined by calling to <code>determineCType</code>, and based on the tpe of the argument it might require casting. After generating the list of the arguments, we simply close the parentheses and print the generated function name and body in header and body string streams:</p><pre><code>funcname &lt;&lt; &quot;)&quot;;
+
+OS.HeaderOS &lt;&lt; funcname.str() &lt;&lt; &quot;;\n&quot;;
+
+OS.BodyOS &lt;&lt; funcname.str() &lt;&lt; &quot;{\n    &quot;;
+OS.BodyOS &lt;&lt; functionBody.str();
+OS.BodyOS &lt;&lt; bodyEnd &lt;&lt; &quot;; \n}\n&quot; ;
+</code></pre><p>As explained earlier, <code>BodyOS</code> and <code>HeaderOS</code> streams are flushed to related files in the end. To build and install the binary simply clone the repo and issue the following commands (you require cmake and make to be installed):</p><pre><code>git clone https://github.com/samanbarghi/CPP2C
+cd CPP2C
+mkdir build
+cmake ..
+make
+sudo make install
+</code></pre><p>The binary is installed under <code>/usr/local/bin</code> and you can use it under the uThreads directory as follows:</p><pre><code>git clone https://github.com/samanbarghi/uThreads
+cd uThreads
+cpp2c include/uThreads.h -- -I./src -std=c++11
+</code></pre><p><code>cpp2c</code> creates two files <code>cwrapper.h</code> and <code>cwrapper.cpp</code> that holds the generated C interface. You can find the generated file <a href=https://github.com/samanbarghi/CPP2C/tree/master/output>here</a>.</p><p>Another issue with current approach is in cases where there is no public constructor (e.g., uThread class does not have a public constructor and uThread instances are created using uThreads::create function) the content of the constructor is going to be wrong and need to be updated. A possible fix that can further improve the current approach is to annotate the C++ source code with the intended C interface, and in cases the annotation is used simply use the annotation instead of generating the function.</p><p>Although the C interface generator still has some shortcomings when it comes to return types, dealing with template functions and out of uThreads classes, this practice shows the potential of using such approach to automate the generation of C interfaces from C++ source code, specially for large projects.</p></div><div id=disqus_thread></div></div><script type=text/javascript>var disqus_shortname="samanbarghi";(function(){var a=document.createElement('script');a.async=!0,a.type='text/javascript',a.src='//'+disqus_shortname+'.disqus.com/count.js',(document.getElementsByTagName('HEAD')[0]||document.getElementsByTagName('BODY')[0]).appendChild(a)})()</script><script type=text/javascript>var disqus_shortname="samanbarghi";(function(){var a=document.createElement('script');a.type='text/javascript',a.async=!0,a.src='//'+disqus_shortname+'.disqus.com/embed.js',(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(a)})()</script><noscript>Please enable JavaScript to view the <a href=http://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=http://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a>
+<script src=http://samanbarghi.com/js/highlight.pack.js></script><script>hljs.initHighlightingOnLoad()</script></body></html>

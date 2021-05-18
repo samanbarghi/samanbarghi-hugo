@@ -1,0 +1,120 @@
+<!doctype html><html xmlns=http://www.w3.org/1999/xhtml xml:lang=en lang=en-us><head><link href=http://gmpg.org/xfn/11 rel=profile><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><title>SPDY installation &#183; Saman Barghi</title><link rel=stylesheet href=http://samanbarghi.com/css/poole.css><link rel=stylesheet href=http://samanbarghi.com/css/hyde.css><link rel=stylesheet href=http://samanbarghi.com/css/poole-overrides.css><link rel=stylesheet href=http://samanbarghi.com/css/hyde-overrides.css><link rel=stylesheet href=http://samanbarghi.com/css/hyde-x.css><link rel=stylesheet href=http://samanbarghi.com/css/highlight/monokai_sublime.css><link rel=stylesheet href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface"><link rel=stylesheet href=//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css><link rel=apple-touch-icon-precomposed sizes=144x144 href=http://samanbarghi.com/touch-icon-144-precomposed.png><link href=http://samanbarghi.com/favicon.png rel=icon><meta name=description content="Your default page description"><meta name=keywords content="Saman,Barghi,Personal,Blog,Programming,Developer,University of Waterloo,hacker"><script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','//www.google-analytics.com/analytics.js','ga'),ga('create','UA-48282777-1','auto'),ga('send','pageview')</script></head><body class=theme-base-0c><div class=sidebar><div class="container sidebar-sticky"><div class=sidebar-about><h1>Saman Barghi</h1><p class=lead>Trying to live a better life.</p></div><ul class=sidebar-nav><li class=sidebar-nav-item><a href=http://samanbarghi.com/>Blog</a></li><li class=sidebar-nav-item><a href=http://samanbarghi.com/about/>About</a></li><li class=sidebar-nav-item><a href=http://samanbarghi.com/projects/>Projects</a></li></ul><ul class=sidebar-nav><li class=sidebar-nav-item><a href=https://github.com/samanbarghi><i class="fa fa-github-square fa-3x"></i></a>
+<a href=http://stackexchange.com/users/308492/saman-barghi><i class="fa fa-stack-overflow fa-3x"></i></a>
+<a href=https://ca.linkedin.com/in/samanbarghi><i class="fa fa-linkedin-square fa-3x"></i></a>
+<a href=https://plus.google.com/107308907271825277073><i class="fa fa-google-plus-square fa-3x"></i></a>
+<a href=http://samanbarghi.com/index.xml type=application/rss+xml><i class="fa fa-rss-square fa-3x"></i></a></li></ul><p><script id=flattr>(function(c){var b=document.getElementById(c),a=document.createElement('iframe');a.src='//api.flattr.com/button/view/?uid=&button=compact&url=http://samanbarghi.com/&title=Saman Barghi',a.title='Flattr',a.height=20,a.width=110,a.style.borderWidth=0,b.parentNode.insertBefore(a,b)})('flattr')</script></p><p>Copyright &copy; 2021 <a href=http://samanbarghi.com/license/>License</a><br>Powered by <a href=http://gohugo.io>Hugo</a> and <a href=https://github.com/zyro/hyde-x>Hyde-X</a></p></div></div><div class="content container"><div class=post><h1 class=post-title>SPDY installation</h1><span class=post-date>Mar 31, 2010 &#183; 5 minute read &#183; <a href=http://samanbarghi.com/2010/03/31/spdy-installation/#disqus_thread>Comments</a><br><a class=label href=http://samanbarghi.com/categories/guides>Guides</a></span><p>I am taking a course called “Latency in Communication Systems” taught by Martin Karsten in University of Waterloo. We talked about different aspects of latency in communication systems, there were some lectures from industry (Sandvine, TD Securites, RIM, and SUN/Oracle) about what were the different problems they were facing during their system implementation. I had also presented two papers on profiling and router performance during the course. My course project is the reason I am writing this post, I have to install and evaluate SPDY. SPDY is a new application-layer protocol designed by Google to replace HTTP in order to make the web faster. It offers multiple requests per connection, server-initiated requests along with the client-initiated requests, header and data compression over SSL. In this post I am not going to talk about SPDY and it’s features, I will explain the process of SPDY client (chromium) and server installation as I need them later to evaluate this protocol.</p><h2 id=install-chromium>Install Chromium</h2><p>Edit: Follow the build instruction for linux here: <a href=http://code.google.com/p/chromium/wiki/LinuxBuildInstructions>http://code.google.com/p/chromium/wiki/LinuxBuildInstructions</a></p><p>I started to compile chromium on Ubuntu Karmic Koala 9.10. The obvious place to start is the chromium website, Although take a look at this, we need to enable data recording to cache some data for the in-memory server, I will explain this later. These are the required step to take :</p><ol><li><p>Install all the prerequisites</p></li><li><p>Download the source tarball from here.</p></li><li><p>Extract it to a location (It should not include any spaces). I extracted it to ~/chromium</p></li><li><p>Install depot_tools</p><ol><li><p><code>svn co http://src.chromium.org/svn/trunk/tools/depot_tools</code></p></li><li><p>Add depot_tools to your PATH:
+<code>$ export PATH=`pwd`/depot_tools:"$PATH"</code></p></li></ol></li><li><p>Updating your checkout once by running <code>gclient sync --force</code></p><p>in the source code directory (~/chromium/src). It is important to include the ‘–force’ option as I was getting this message:</p><p><code>make: *** No rule to make target `third_party/yasm/source/patched-yasm/ modules/arch/x86/gen_x86_insn.py', needed by `out/Debug/obj/gen/ third_party/yasm/x86insns.c'. Stop."</code></p><p>over and over again since I forgot to include the &ndash;force option. It seems that this command generate platform-specific files</p><ul><li><p><strong>Important:</strong> ensure that you have GYP_GENERATORS=make in your environment before running gclient sync or gclient runhooks &ndash;force. This tells the Chromium build system to output Makefiles. Example: <code>export GYP_GENERATORS=make gclient sync</code></p></li><li><p>Take this step only if you want to record data to be used by flip-server, if you just want to compile and run chromium skip this step and go to step 9. Modify the file chrome/common/chrome_constants.cc - change the line which reads <code>kRecordModeEnabled = false</code></p><p>to</p><p><code>kRecordModeEnabled = true</code></p></li><li><p>Go to the source directory and write (if you are using a multiple-core machine use -jX, where X is the number of make processes to startup): <code>make chrome</code></p></li><li><p>You can find the executable in src/out/Debug/chrome
+Now you should be able to run chrome with no problem.</p></li></ul><h2 id=install-flip-server>Install flip-server</h2><p>To install flip-server, take a look at this. Go to the Chromuim src directory, and here are the steps that I took to install flip server:</p><ol><li>If you don’t already have a test key.pem and certificate.pem, you can generate one like so:</li></ol></li></ol><pre><code>openssl genrsa -out key.pem 1024
+openssl req -new -key key.pem -out request.pem  #and answer the questions at the prompt with whatever
+openssl x509 -req -days 30 -in request.pem -signkey key.pem -out cert.pem
+</code></pre><pre><code>2.  Get the patch from: &lt;http://codereview.chromium.org/1566013&gt;, Click the &amp;#8216;download raw patch&amp;#8217; link and save. Assuming you&amp;#8217;re in the &lt;tt&gt;chromium/src&lt;/tt&gt; directory, type: ``patch -p0 &lt; filename_of_the_patch_you_just_downloaded``
+
+3.  Find the commented-out-section in net.gyp (look for &amp;#8216;flip\_in\_mem\_edsm\_server&amp;#8221;) and uncomment it.
+4.  You will need to install the openssl libraries. The exact packages depend on your linux distribution (but will be named something like ssl-dev or openssl-dev, or in ubuntu libssl-dev), so watch the error messages, if any. After you&amp;#8217;ve done all that, you do: ``make out/Debug/flip_in_mem_edsm_server ``
+
+5.  I had to change these lines to get rid of some compiling errors :
+    *   While compiling I got :
+</code></pre><pre><code>/usr/include/linux/tcp.h:72: error: '__u32 __fswab32(__u32)' cannot
+appear in a constant-expression
+/usr/include/linux/tcp.h:72: error: a function call cannot appear in a
+constant-expression
+/usr/include/linux/tcp.h:73: error: '__u32 __fswab32(__u32)' cannot
+appear in a constant-expression
+/usr/include/linux/tcp.h:73: error: a function call cannot appear in a
+constant-expression
+</code></pre><pre><code>        To fix it, in file &lt;tt&gt;src/net/tools/flip_server/flip_in_mem_edsm_server.cc&lt;/tt&gt; change the line that reads:
+
+        &lt;pre class=&quot;brush: plain; light: true; title: ; notranslate&quot; title=&quot;&quot;&gt;#include &amp;lt;linux/tcp.h&amp;gt;&lt;/pre&gt;
+
+        to
+
+        &lt;pre class=&quot;brush: plain; light: true; title: ; notranslate&quot; title=&quot;&quot;&gt;#include &amp;lt;netinet/tcp.h&amp;gt;&lt;/pre&gt;
+
+    *   In the same file change : &lt;pre class=&quot;brush: plain; light: true; title: ; notranslate&quot; title=&quot;&quot;&gt;state-&amp;gt;ssl_method = SSLv23_method();&lt;/pre&gt;
+
+        to
+
+        &lt;pre class=&quot;brush: plain; light: true; title: ; notranslate&quot; title=&quot;&quot;&gt;state-&amp;gt;ssl_method = const_cast&amp;lt;SSL_METHOD *&amp;gt; (SSLv23_method()); &lt;/pre&gt;
+
+    *   I was getting some errors related to &lt;tt&gt;printSslError &lt;/tt&gt; function in &lt;tt&gt;flip_in_mem_edsm_server.cc&lt;/tt&gt;, it seems that this function prints out the errors related to SSL encryption, since I did not need that I commented the contents of the function out.
+
+## Install Chrome which is able to talk to localhost server
+
+Now if you want a quick chrome installation that is able to talk to your installed server on localhost you need to copy the following script, save it in a file and run &lt;tt&gt;bash filename&lt;/tt&gt;:
+</code></pre><pre><code>#!/bin/bash
+
+if [ &quot;$(dpkg --print-architecture)&quot; == &quot;amd64&quot; ]; then
+  echo -ne &quot;\n\nYou have a 64 bit computer\n\n&quot;
+  linux_versions=&quot;linux64&quot;;
+else
+  echo -ne &quot;\n\nYou have a 32 bit computer\n\n&quot;
+  linux_versions=&quot;linux&quot;;
+fi
+
+for linux_version in $linux_versions; do
+  install_dir=$HOME/spdy-chrome-canary/$linux_version
+
+  if mkdir -p $install_dir; then
+    echo &quot;Directory: \&quot;$install_dir\&quot; made or already existed&quot;
+  else
+      echo &quot;$install_dir exists, but is not a directory.&quot;
+      echo &quot;Please remove whatever is there so this script can proceed next time.&quot;
+      exit 128
+  fi
+
+  pushd $install_dir
+
+  install -d chrome-linux-old
+  mv chrome-linux chrome-linux-old/chrome-linux-`date +&quot;%F-%k-%M-%S-%N&quot;`
+  rm -rf chrome-linux chrome-linux-old chrome-linux.zip
+  wget http://build.chromium.org/buildbot/continuous/$linux_version/LATEST/chrome-linux.zip
+  unzip chrome-linux.zip
+  rm -rf chrome-linux.zip
+
+  popd
+
+  filename_base=SPDY-Chrome-$linux_version
+  cat &amp;gt;&amp;gt; $HOME/Desktop/$filename_base.desktop &amp;lt;&amp;lt;-EOF
+[Desktop Entry]
+Version=1.0
+Encoding=UTF-8
+Name=$filename_base
+Categories=Application;Network;WebBrowser;
+Exec=$install_dir/chrome-linux/chrome --use-spdy --enable-logging --log-level=0 --user-data-dir=.$filename_base %U
+Icon=/tmp/chrome-linux/product_logo_48.png
+MimeType=text/html;text/xml;
+Terminal=false
+Type=Application
+EOF
+
+  filename_base=SPDY-Chrome-local-server-$linux_version
+  cat &amp;gt;&amp;gt; $HOME/Desktop/$filename_base.desktop &amp;lt;&amp;lt;-EOF
+[Desktop Entry]
+Version=1.0
+Encoding=UTF-8
+Name=$filename_base
+Categories=Application;Network;WebBrowser;
+Exec=$install_dir/chrome-linux/chrome --use-spdy --enable-logging --log-level=0 --user-data-dir=.$filename_base --host-resolver-rules='MAP * localhost' --testing-fixed-http-port=10040 --testing-fixed-https-port=10040 %U
+Icon=/tmp/chrome-linux/product_logo_48.png
+MimeType=text/html;text/xml;
+Terminal=false
+Type=Application
+EOF
+
+  filename_base=NO-SPDY-Chrome-local-server-$linux_version
+  cat &amp;gt;&amp;gt; $HOME/Desktop/$filename_base.desktop &amp;lt;&amp;lt;-EOF
+[Desktop Entry]
+Version=1.0
+Encoding=UTF-8
+Name=$filename_base
+Categories=Application;Network;WebBrowser;
+Exec=$install_dir/chrome-linux/chrome --enable-logging --log-level=0 --user-data-dir=.$filename_base --host-resolver-rules='MAP * localhost' --testing-fixed-http-port=16002 --testing-fixed-https-port=16002 %U
+Icon=/tmp/chrome-linux/product_logo_48.png
+MimeType=text/html;text/xml;
+Terminal=false
+Type=Application
+EOF
+
+done
+</code></pre></div><div id=disqus_thread></div></div><script type=text/javascript>var disqus_shortname="samanbarghi";(function(){var a=document.createElement('script');a.async=!0,a.type='text/javascript',a.src='//'+disqus_shortname+'.disqus.com/count.js',(document.getElementsByTagName('HEAD')[0]||document.getElementsByTagName('BODY')[0]).appendChild(a)})()</script><script type=text/javascript>var disqus_shortname="samanbarghi";(function(){var a=document.createElement('script');a.type='text/javascript',a.async=!0,a.src='//'+disqus_shortname+'.disqus.com/embed.js',(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(a)})()</script><noscript>Please enable JavaScript to view the <a href=http://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=http://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a>
+<script src=http://samanbarghi.com/js/highlight.pack.js></script><script>hljs.initHighlightingOnLoad()</script></body></html>

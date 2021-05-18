@@ -1,0 +1,67 @@
+<!doctype html><html xmlns=http://www.w3.org/1999/xhtml xml:lang=en lang=en-us><head><link href=http://gmpg.org/xfn/11 rel=profile><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><title>Mercurial on Bluehost &#183; Saman Barghi</title><link rel=stylesheet href=http://samanbarghi.com/css/poole.css><link rel=stylesheet href=http://samanbarghi.com/css/hyde.css><link rel=stylesheet href=http://samanbarghi.com/css/poole-overrides.css><link rel=stylesheet href=http://samanbarghi.com/css/hyde-overrides.css><link rel=stylesheet href=http://samanbarghi.com/css/hyde-x.css><link rel=stylesheet href=http://samanbarghi.com/css/highlight/monokai_sublime.css><link rel=stylesheet href="https://fonts.googleapis.com/css?family=PT+Sans:400,400italic,700|Abril+Fatface"><link rel=stylesheet href=//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css><link rel=apple-touch-icon-precomposed sizes=144x144 href=http://samanbarghi.com/touch-icon-144-precomposed.png><link href=http://samanbarghi.com/favicon.png rel=icon><meta name=description content="Your default page description"><meta name=keywords content="Saman,Barghi,Personal,Blog,Programming,Developer,University of Waterloo,hacker"><script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','//www.google-analytics.com/analytics.js','ga'),ga('create','UA-48282777-1','auto'),ga('send','pageview')</script></head><body class=theme-base-0c><div class=sidebar><div class="container sidebar-sticky"><div class=sidebar-about><h1>Saman Barghi</h1><p class=lead>Trying to live a better life.</p></div><ul class=sidebar-nav><li class=sidebar-nav-item><a href=http://samanbarghi.com/>Blog</a></li><li class=sidebar-nav-item><a href=http://samanbarghi.com/about/>About</a></li><li class=sidebar-nav-item><a href=http://samanbarghi.com/projects/>Projects</a></li></ul><ul class=sidebar-nav><li class=sidebar-nav-item><a href=https://github.com/samanbarghi><i class="fa fa-github-square fa-3x"></i></a>
+<a href=http://stackexchange.com/users/308492/saman-barghi><i class="fa fa-stack-overflow fa-3x"></i></a>
+<a href=https://ca.linkedin.com/in/samanbarghi><i class="fa fa-linkedin-square fa-3x"></i></a>
+<a href=https://plus.google.com/107308907271825277073><i class="fa fa-google-plus-square fa-3x"></i></a>
+<a href=http://samanbarghi.com/index.xml type=application/rss+xml><i class="fa fa-rss-square fa-3x"></i></a></li></ul><p><script id=flattr>(function(c){var b=document.getElementById(c),a=document.createElement('iframe');a.src='//api.flattr.com/button/view/?uid=&button=compact&url=http://samanbarghi.com/&title=Saman Barghi',a.title='Flattr',a.height=20,a.width=110,a.style.borderWidth=0,b.parentNode.insertBefore(a,b)})('flattr')</script></p><p>Copyright &copy; 2021 <a href=http://samanbarghi.com/license/>License</a><br>Powered by <a href=http://gohugo.io>Hugo</a> and <a href=https://github.com/zyro/hyde-x>Hyde-X</a></p></div></div><div class="content container"><div class=post><h1 class=post-title>Mercurial on Bluehost</h1><span class=post-date>Aug 26, 2011 &#183; 3 minute read &#183; <a href=http://samanbarghi.com/2011/08/26/mercurial-on-bluehost/#disqus_thread>Comments</a><br><a class=label href=http://samanbarghi.com/categories/uncategorized>Uncategorized</a></span><pre><code>vim ~/.bash_profile
+export LD_LIBRARY_PATH=”$HOME/packages/lib:$LD_LIBRARY_PATH”
+export PYTHONPATH=”$HOME/packages/lib/python2.3/site-packages:$PYTHONPATH”
+export PATH=”$HOME/packages/bin:$HOME/bin:$PATH”
+source ~/.bash_profile
+vim ~/.bashrc
+PATH=$PATH:$HOME/bin:$HOME/packages/mercurial
+source ~/.bashrc
+</code></pre><p>Create folders (Please note, from now on my assumption is that your web directory is located at $HOME/public_html, please change the related parts if your configuration is different):</p><pre><code>cd
+mkdir install_files
+mkdir packages
+mkdir ~/public_html/hg
+mkdir ~/public_html/hg/repos
+</code></pre><p>Get Mercurial and install:</p><pre><code>cd ~/packages
+wget http://selenic.com/repo/hg-stable/archive/tip.tar.gz
+tar zxf tip.tar.gz
+mv tip.tar.gz ~/install_files/
+mv Mercurial* mercurial
+cd mercurial
+#dont' forget to change the username
+echo -e &quot;[ui]\nusername=YOURUSERNAME &amp;lt;YOUREMAIL@WEB.com&amp;gt;&quot; &amp;gt; ~/.hgrc﻿
+make local
+./hg debuginstall
+</code></pre><p>Running the last command should not show any problems and you would see :</p><pre><code>Checking encoding (UTF-8)...
+Checking installed modules (~/packages/mercurial/mercurial)...
+Checking templates...
+Checking commit editor...
+Checking username...
+No problems detected
+</code></pre><p>In order to be able to push, mercurial provides a cgi script(hgweb.cgi) to handle push commands (<a href=http://mercurial.selenic.com/wiki/PublishingRepositories#hgweb>http://mercurial.selenic.com/wiki/PublishingRepositories#hgweb</a>). In addition, there is a need for apache authentication module to perform the authentication tasks and manage accesses to our repository. Before, we can use the repository we need to copy the hgweb.cgi script to our web directory, and customize it afterwards:</p><pre><code>sed 's|#import sys|import sys|g;s|/path/to/python/lib|'$HOME'/packages/mercurial|g;s|/path/to/repo/or/config|'$HOME'/public_html/hg/hgweb.config|g' ~/packages/mercurial/hgweb.cgi &amp;gt; $HOME/public_html/hg/hgweb.cgi
+chmod 755 ~/public_html/hg/hgweb.cgi
+</code></pre><p>Create hgweb.config file. You can use *[collections] *instead of <em>[paths]</em> here, it depends on your personal taste. <a href=http://mercurial.selenic.com/wiki/PublishingRepositories#Configuration_of_hgweb>Here</a> suggested to use paths instead of collection. So if you prefer to use <em>[collections]</em> instead, do not forget to remove all the lines related to hgweb.config when you initialize your repository:</p><pre><code>echo [web] &amp;gt; ~/public_html/hg/hgweb.config
+echo allowpull=true &amp;gt;&amp;gt; ~/public_html/hg/hgweb.config
+echo [paths] &amp;gt;&amp;gt; ~/public_html/hg/hgweb.config
+</code></pre><p>Create .htaccess file:</p><pre><code>echo 'Options +ExecCGI' &amp;gt; ~/public_html/hg/.htaccess
+echo 'RewriteEngine On' &amp;gt;&amp;gt; ~/public_html/hg/.htaccess
+echo 'RewriteBase /hg' &amp;gt;&amp;gt; ~/public_html/hg/.htaccess
+echo 'RewriteRule ^$ hgweb.cgi [L]' &amp;gt;&amp;gt; ~/public_html/hg/.htaccess
+echo 'RewriteCond %{REQUEST_FILENAME} !-f' &amp;gt;&amp;gt; ~/public_html/hg/.htaccess
+echo 'RewriteCond %{REQUEST_FILENAME} !-d' &amp;gt;&amp;gt; ~/public_html/hg/.htaccess
+echo 'RewriteRule (.*) hgweb.cgi/$1 [QSA,L]' &amp;gt;&amp;gt; ~/public_html/hg/.htaccess
+echo 'AuthUserFile /home/'$USER'/etc/hg-basic-auth' &amp;gt;&amp;gt; ~/public_html/hg/.htaccess
+echo 'AuthName &quot;HG Repositories&quot;' &amp;gt;&amp;gt; ~/public_html/hg/.htaccess
+echo 'AuthType Basic' &amp;gt;&amp;gt; ~/public_html/hg/.htaccess
+echo 'Require valid-user' &amp;gt;&amp;gt; ~/public_html/hg/.htaccess
+</code></pre><p>Create Passwd files:</p><pre><code>cd
+htpasswd -b -c -d ~/etc/hg-basic-auth HgUserName PASSWORD
+</code></pre><p>For extra users:</p><pre><code>htpasswd -b -d ~/etc/hg-basic-auth HgUserNameExtra PASSWORD
+</code></pre><p>Initialize repositories (Do not forget to change all instances of PROJECT to your own project name):</p><pre><code>cd ~/public_html/hg/repos
+~/packages/mercurial/hg init PROJECT
+echo 'PROJECT = '$HOME'/public_html/hg/repos/PROJECT' &amp;gt;&amp;gt; ~/public_html/hg/hgweb.config
+</code></pre><p>For extra projects :</p><pre><code>~/packages/mercurial/hg init ExtraPROJECT
+echo 'ExtraPROJECT  = '$HOME'/public_html/hg/repos/ExtraPROJECT' &amp;gt;&amp;gt; ~/public_html/hg/hgweb.config
+</code></pre><p>Now lets create hgrc files for each project :</p><pre><code>echo '[web]' &amp;gt; ~/public_html/hg/repos/PROJECT/.hg/hgrc
+echo 'contact=admin email address' &amp;gt;&amp;gt; ~/public_html/hg/repos/PROJECT/.hg/hgrc
+echo 'description=My releases' &amp;gt;&amp;gt; ~/public_html/hg/repos/PROJECT/.hg/hgrc
+echo 'allow_push=USER1, USERn' &amp;gt;&amp;gt; ~/public_html/hg/repos/PROJECT/.hg/hgrc
+echo 'allow_archive=zip' &amp;gt;&amp;gt; ~/public_html/hg/repos/PROJECT/.hg/hgrc
+</code></pre><blockquote><p>By default, pushing is only allowed via HTTPS. To permit HTTP pushing you have to add this to your repository’s .hg/hgrc file (or your Web server user’s .hgrc file, such as/home/www-data/.hgrc, or a system-wide hgrc file like /etc/mercurial/hgrc):</p></blockquote><p>I personally decided to put this in the hgrc file in my repository:</p><pre><code>echo 'push_ssl = false' &amp;gt;&amp;gt; ~/public_html/hg/repos/PROJECT/.hgrc
+</code></pre><p>You are basically done. You can access your repository using :</p><pre><code>hg clone http://yourdomain.com/hg/PROJECT
+
+</code></pre><p>&lt;span class=&lsquo;st_facebook&rsquo; st_title=&lsquo;Mercurial on Bluehost&rsquo; st_url=&lsquo;<a href="http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'%3E">http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'></a>&lt;span st_via=&lsquo;saman_b&rsquo; class=&lsquo;st_twitter&rsquo; st_title=&lsquo;Mercurial on Bluehost&rsquo; st_url=&lsquo;<a href="http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'%3E">http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'></a>&lt;span class=&lsquo;st_email&rsquo; st_title=&lsquo;Mercurial on Bluehost&rsquo; st_url=&lsquo;<a href="http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'%3E">http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'></a>&lt;span class=&lsquo;st_sharethis&rsquo; st_title=&lsquo;Mercurial on Bluehost&rsquo; st_url=&lsquo;<a href="http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'%3E">http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'></a>&lt;span class=&lsquo;st_fblike&rsquo; st_title=&lsquo;Mercurial on Bluehost&rsquo; st_url=&lsquo;<a href="http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'%3E">http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'></a>&lt;span class=&lsquo;st_plusone&rsquo; st_title=&lsquo;Mercurial on Bluehost&rsquo; st_url=&lsquo;<a href="http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'%3E">http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'></a>&lt;span class=&lsquo;st_pinterest&rsquo; st_title=&lsquo;Mercurial on Bluehost&rsquo; st_url=&lsquo;<a href="http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'%3E">http://www.samanbarghi.com/2011/08/26/mercurial-on-bluehost/'></a></p></div><div id=disqus_thread></div></div><script type=text/javascript>var disqus_shortname="samanbarghi";(function(){var a=document.createElement('script');a.async=!0,a.type='text/javascript',a.src='//'+disqus_shortname+'.disqus.com/count.js',(document.getElementsByTagName('HEAD')[0]||document.getElementsByTagName('BODY')[0]).appendChild(a)})()</script><script type=text/javascript>var disqus_shortname="samanbarghi";(function(){var a=document.createElement('script');a.type='text/javascript',a.async=!0,a.src='//'+disqus_shortname+'.disqus.com/embed.js',(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(a)})()</script><noscript>Please enable JavaScript to view the <a href=http://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=http://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a>
+<script src=http://samanbarghi.com/js/highlight.pack.js></script><script>hljs.initHighlightingOnLoad()</script></body></html>
