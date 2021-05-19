@@ -21,6 +21,7 @@ url: /2011/08/26/mercurial-on-bluehost
   <span style="text-align: -webkit-auto;">Update your bash profile, add/modify these 3 lines:</span>
 </p>
 
+ <!--more-->
 ```
 vim ~/.bash_profile
 export LD_LIBRARY_PATH=”$HOME/packages/lib:$LD_LIBRARY_PATH”

@@ -42,7 +42,7 @@ paginate = 10
 
     # Displays under the author name in the sidebar, keep it short.
     # You can use markdown here.
-    tagline = "Trying to live a better life."
+    tagline = "Opinions expressed are solely my own and do not express the views or opinions of my employer"
 
     # Text for the top menu link, which goes the root URL for the site.
     # Default (if omitted) is "Blog".
