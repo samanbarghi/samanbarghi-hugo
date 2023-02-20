@@ -85,9 +85,9 @@ params:
     - name: linkedin
       url: "https://ca.linkedin.com/in/samanbarghi"
 
-  analytics:
-    google:
-        SiteVerificationTag: "UA-48282777-1"
+  # analytics:
+    #google:
+      #SiteVerificationTag: "UA-48282777-1"
   #   bing:
   #     SiteVerificationTag: "XYZabc"
   #   yandex:
