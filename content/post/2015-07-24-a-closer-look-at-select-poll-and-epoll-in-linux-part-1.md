@@ -76,7 +76,6 @@ It is also important to note that since kernel uses the same `fd_set` structure 
 As mentioned earlier, kernel return the results in form of `fd_set`, where the bit matching the file descriptor is set if the device is ready to perform the related task or an exception occurred (in the realted `fd_set`). Thus, user has to loop through all the bits (up to max file descriptor) and check whether the bit is set using `FD_ISSET`, and perform the proper task if the bit is set.
 Lets use pseudo code to explain this process further. Green means the code is executing in user space, and red means the code is executing in the kernel space (due to the `select` system call). This pseudo code is based on a simple server that reads the data from each connected socket and echo it back. You can find a sample code [here](http://www.binarytides.com/multiple-socket-connections-fdset-select-linux/).
 
-{{< >}}
 <div class="pseudocode">
 #### User Space
 
@@ -120,7 +119,6 @@ Lets use pseudo code to explain this process further. Green means the code is ex
        1. If the bit is set, read the data on the socket and print the result
        2. If connection is lost close the socket and remove it from the list of active connections
 </div>
-{{% %}}
 
 Here are some of the points that requires to be highlighted:
 
@@ -173,7 +171,6 @@ In addition, `pollfd` structure has separate fields for requested events and ret
 
 Here is the related pseudo code to create a server using `poll`:
 
-{{< >}}
 <div class="pseudocode">
 #### User Space
 
@@ -213,7 +210,6 @@ Here is the related pseudo code to create a server using `poll`:
             2. add the new socket to `poll_set` and set the events to `POLLIN`
         3. else read the data on the socket and print the result and if connection is lost close the socket and set the related fd in `poll_set` to -1
 </div>
-{{% %}}
 
 
 ## epoll
