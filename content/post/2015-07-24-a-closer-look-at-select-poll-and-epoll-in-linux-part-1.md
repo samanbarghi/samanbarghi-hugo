@@ -9,9 +9,9 @@ categories:
 - performance
 draft: true
 comments: true
-date: '2015-07-24'
+date: '2016-07-24'
 title: A Closer Look at select, poll, and epoll in Linux (Part 1)
-url: /2015/07/24/a-closer-look-at-select-poll-and-epoll-in-linux-part-1
+url: /2016/07/24/a-closer-look-at-select-poll-and-epoll-in-linux-part-1
 ---
 
 I am working on a project that requires creating wrappers around `select`, `poll`, and `epoll` system
